@@ -15,7 +15,11 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.awt.*;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.DoubleAdder;
@@ -26,25 +30,33 @@ import java.util.logging.Logger;
 @RequiredArgsConstructor
 @Slf4j
 public class GlobalActivityListener implements NativeKeyListener, NativeMouseInputListener, InitializingBean {
-    public static final double CENTIMER_FACTOR = 2.54;
-    public static final double DPI = 91.79;
+    public static final double CENTIMETER_FACTOR = 2.54;
+    public static final double DPI = 91.79; // Could be configurable if needed
+    private static final int IDLE_THRESHOLD_MINUTES = 5;
+
     private final ActivityLogService activityLogService;
+
     private final AtomicLong leftClicks = new AtomicLong();
     private final AtomicLong rightClicks = new AtomicLong();
     private final AtomicLong middleClicks = new AtomicLong();
     private final AtomicLong keyPresses = new AtomicLong();
-    private final DoubleAdder mouseMovement  = new DoubleAdder();
-    private final AtomicReference<String> activeApplication = new AtomicReference<>("Unknown");
-    private final AtomicReference<String> activeWindowTitle = new AtomicReference<>("Unknown");
+    private final DoubleAdder mouseMovement = new DoubleAdder();
+
+    // Simplified: Use volatile for thread safety since LocalDateTime is immutable
+    private volatile LocalDateTime lastActivityTime = LocalDateTime.now();
+    private volatile LocalDateTime idleStartTime;
+
+    private volatile boolean userIdle = false;
     private int lastX = -1;
     private int lastY = -1;
-
 
     @Override
     public void afterPropertiesSet() throws Exception {
         Logger logger = Logger.getLogger(GlobalScreen.class.getPackage().getName());
         logger.setLevel(Level.OFF);
-        GlobalScreen.registerNativeHook();
+        if (!GlobalScreen.isNativeHookRegistered()) {
+            GlobalScreen.registerNativeHook();
+        }
         GlobalScreen.addNativeKeyListener(this);
         GlobalScreen.addNativeMouseListener(this);
         GlobalScreen.addNativeMouseMotionListener(this);
@@ -52,22 +64,19 @@ public class GlobalActivityListener implements NativeKeyListener, NativeMouseInp
 
     @Override
     public void nativeKeyPressed(NativeKeyEvent e) {
-        log.info("Key pressed: {}", e.getKeyCode());
         keyPresses.incrementAndGet();
+        updateActivityTime();
     }
 
     @Override
     public void nativeMousePressed(NativeMouseEvent e) {
-        log.info("Native Mouse Pressed: {}", e.getButton());
         switch (e.getButton()) {
             case NativeMouseEvent.BUTTON1 -> leftClicks.incrementAndGet();
             case NativeMouseEvent.BUTTON2 -> rightClicks.incrementAndGet();
             case NativeMouseEvent.BUTTON3 -> middleClicks.incrementAndGet();
         }
-        log.info("right clicks: {}", rightClicks.get());
-        log.info("left clicks: {}", leftClicks.get());
+        updateActivityTime();
     }
-
 
     @Override
     public void nativeMouseMoved(NativeMouseEvent e) {
@@ -78,33 +87,43 @@ public class GlobalActivityListener implements NativeKeyListener, NativeMouseInp
         }
         lastX = e.getX();
         lastY = e.getY();
-    }
-
-    private void updateActiveApplicationAndWindow() {
-        activeApplication.set(WindowsFocusTracker.getActiveApplication());
-        activeWindowTitle.set(WindowsFocusTracker.getActiveWindowTitle());
+        updateActivityTime();
     }
 
     private double pixelsToCentimeters(double pixels) {
         double inches = pixels / DPI;
-        return inches * CENTIMER_FACTOR;
+        return inches * CENTIMETER_FACTOR;
     }
 
     @Scheduled(fixedRateString = "1", timeUnit = TimeUnit.MINUTES, initialDelay = 1)
     public void saveActivityLog() {
-        log.info("Saving activity log ");
-        this.updateActiveApplicationAndWindow();
+        log.info("saving activity log");
+        LocalDateTime now = LocalDateTime.now();
+        boolean isIdle = isUserIdle();
+
+        long idleDuration = 0;
+        if (isIdle && idleStartTime == null) {
+            idleStartTime = now;
+        } else if (!isIdle && idleStartTime != null) {
+            idleDuration = ChronoUnit.SECONDS.between(idleStartTime, now);
+            idleStartTime = null;
+        }
+
         ActivityLog log = ActivityLog.builder()
                 .leftClicks(leftClicks.get())
                 .rightClicks(rightClicks.get())
                 .middleClicks(middleClicks.get())
                 .keyPresses(keyPresses.get())
                 .mouseMovement(mouseMovement.doubleValue())
-                .activeApplication(activeApplication.get())
-                .activeWindowTitle(activeWindowTitle.get())
+                .monitorActivity(MultiMonitorTracker.trackMultiMonitor())
+                .isIdle(isIdle)
+                .idleDuration(idleDuration)
                 .build();
+
         activityLogService.saveLog(log);
-        this.resetCounters();
+
+        // Reset counters only after log is saved to avoid resetting during an active log cycle
+        resetCounters();
     }
 
     public void resetCounters() {
@@ -113,7 +132,30 @@ public class GlobalActivityListener implements NativeKeyListener, NativeMouseInp
         middleClicks.set(0);
         keyPresses.set(0);
         mouseMovement.reset();
-        activeApplication.set("Unknown");
-        activeWindowTitle.set("Unknown");
     }
+
+    private boolean isUserIdle() {
+        long idleMinutes = ChronoUnit.MINUTES.between(lastActivityTime, LocalDateTime.now());
+        boolean currentlyIdle = idleMinutes >= IDLE_THRESHOLD_MINUTES;
+
+        if (currentlyIdle && !userIdle) {
+            userIdle = true;
+            idleStartTime = LocalDateTime.now();
+        } else if (!currentlyIdle && userIdle) {
+            userIdle = false;
+            idleStartTime = null;
+        }
+
+        return currentlyIdle;
+    }
+
+    private void updateActivityTime() {
+        lastActivityTime = LocalDateTime.now();
+
+        if (userIdle) {
+            userIdle = false;
+            idleStartTime = null;
+        }
+    }
+
 }

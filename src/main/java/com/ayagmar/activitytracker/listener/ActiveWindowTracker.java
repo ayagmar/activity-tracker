@@ -49,9 +49,6 @@ public class ActiveWindowTracker {
         }
     }
 
-    /**
-     * Extracts the application name from the executable path.
-     */
     private static String extractApplicationName(String executablePath) {
         if (executablePath == null || executablePath.isEmpty()) {
             return "Unknown";
@@ -59,5 +56,4 @@ public class ActiveWindowTracker {
         String fileName = executablePath.substring(executablePath.lastIndexOf('\\') + 1);
         return fileName.substring(0, fileName.lastIndexOf('.'));
     }
-
 }

@@ -23,9 +23,9 @@ public class ActivityLog {
     private long rightClicks;
     private long middleClicks;
     private long keyPresses;
-    private double mouseMovement; // in centimetrs
-    private String activeApplication; // Active application name
-    private String activeWindowTitle;
+    private double mouseMovement;
+    private boolean isIdle;
+    private long idleDuration;
 
-    private Map<String, String> monitorActivity;
+    private Map<String, Map<String, String>> monitorActivity;
 }

@@ -1,10 +1,12 @@
 package com.ayagmar.activitytracker.listener;
 
+import com.ayagmar.activitytracker.model.MonitorActivity;
 import com.mongodb.client.model.Windows;
 import com.sun.jna.platform.win32.User32;
 import com.sun.jna.platform.win32.WinDef;
 import com.sun.jna.platform.win32.WinUser;
 
+import javax.management.monitor.Monitor;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -12,8 +14,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class MultiMonitorTracker {
     private static final User32 user32 = User32.INSTANCE;
 
-    public static Map<String, Map<String, String>> trackMultiMonitor() {
-        Map<String, Map<String, String>> monitorActivity = new HashMap<>();
+    public static Map<String, MonitorActivity> trackMultiMonitor() {
+        Map<String, MonitorActivity> monitorActivity = new HashMap<>();
         AtomicInteger monitorIndex = new AtomicInteger(1);
 
         user32.EnumDisplayMonitors(null, null, (hMonitor, hdc, rect, data) -> {
@@ -24,10 +26,11 @@ public class MultiMonitorTracker {
                 String windowTitle = ActiveWindowTracker.getWindowTitle(topWindow);
                 String applicationName = ActiveWindowTracker.getApplicationName(topWindow);
 
+                // Check if the window is focused (in the monitor context)
+                boolean isFocused = isWindowFocusedOnMonitor(topWindow, rect);
+
                 if (!windowTitle.isEmpty() && !isSystemWindow(windowTitle)) {
-                    Map<String, String> activity = new HashMap<>();
-                    activity.put("activeWindowTitle", windowTitle);
-                    activity.put("activeApplication", applicationName);
+                    MonitorActivity activity = new MonitorActivity(windowTitle, applicationName, isFocused);
                     monitorActivity.put(monitorId, activity);
                 }
             }
@@ -35,6 +38,17 @@ public class MultiMonitorTracker {
         }, null);
 
         return monitorActivity;
+    }
+
+    private static boolean isWindowFocusedOnMonitor(WinDef.HWND hwnd, WinUser.RECT monitorRect) {
+        // Check if the window is the foreground window and is within the monitor's boundaries
+        WinDef.HWND foregroundWindow = user32.GetForegroundWindow();
+        if (foregroundWindow == hwnd) {
+            WinUser.RECT windowRect = new WinUser.RECT();
+            user32.GetWindowRect(hwnd, windowRect);
+            return isWindowOnMonitor(windowRect, monitorRect);
+        }
+        return false;
     }
 
     private static WinDef.HWND getTopWindowOnMonitor(WinUser.RECT monitorRect) {

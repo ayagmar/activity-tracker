@@ -24,6 +24,6 @@ public class ApplicationUsageController {
     public ApplicationUsageReport getApplicationUsage(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end) {
-        return usageService.calculateApplicationUsage(start, end);
+        return null;
     }
 }

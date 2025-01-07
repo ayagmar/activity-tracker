@@ -115,7 +115,7 @@ public class GlobalActivityListener implements NativeKeyListener, NativeMouseInp
                 .middleClicks(middleClicks.get())
                 .keyPresses(keyPresses.get())
                 .mouseMovement(mouseMovement.doubleValue())
-                .monitorActivity(MultiMonitorTracker.trackMultiMonitor())
+                .activity(MultiMonitorTracker.trackMultiMonitor())
                 .isIdle(isIdle)
                 .idleDuration(idleDuration)
                 .build();

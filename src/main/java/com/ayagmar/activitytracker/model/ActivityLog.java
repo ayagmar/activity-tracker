@@ -26,6 +26,5 @@ public class ActivityLog {
     private double mouseMovement;
     private boolean isIdle;
     private long idleDuration;
-
-    private Map<String, Map<String, String>> monitorActivity;
+    private Map<String, MonitorActivity> activity;
 }

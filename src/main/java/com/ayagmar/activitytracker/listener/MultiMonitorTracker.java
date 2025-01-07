@@ -2,32 +2,44 @@ package com.ayagmar.activitytracker.listener;
 
 import com.ayagmar.activitytracker.model.MonitorActivity;
 import com.mongodb.client.model.Windows;
+import com.sun.jna.Native;
+import com.sun.jna.platform.win32.Kernel32;
+import com.sun.jna.platform.win32.Psapi;
 import com.sun.jna.platform.win32.User32;
 import com.sun.jna.platform.win32.WinDef;
+import com.sun.jna.platform.win32.WinNT;
 import com.sun.jna.platform.win32.WinUser;
+import com.sun.jna.ptr.IntByReference;
 
 import javax.management.monitor.Monitor;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class MultiMonitorTracker {
     private static final User32 user32 = User32.INSTANCE;
+    private static final Kernel32 kernel32 = Kernel32.INSTANCE;
+    private static final Psapi psapi = Psapi.INSTANCE;
 
     public static Map<String, MonitorActivity> trackMultiMonitor() {
         Map<String, MonitorActivity> monitorActivity = new HashMap<>();
         AtomicInteger monitorIndex = new AtomicInteger(1);
+
+        WinDef.HWND foregroundWindow = user32.GetForegroundWindow();
+        int currentThreadId = kernel32.GetCurrentThreadId();
 
         user32.EnumDisplayMonitors(null, null, (hMonitor, hdc, rect, data) -> {
             String monitorId = "Monitor " + monitorIndex.getAndIncrement();
             WinDef.HWND topWindow = getTopWindowOnMonitor(rect);
 
             if (topWindow != null) {
-                String windowTitle = ActiveWindowTracker.getWindowTitle(topWindow);
-                String applicationName = ActiveWindowTracker.getApplicationName(topWindow);
+                String windowTitle = getWindowTitle(topWindow);
+                String applicationName = getApplicationName(topWindow);
 
-                // Check if the window is focused (in the monitor context)
-                boolean isFocused = isWindowFocusedOnMonitor(topWindow, rect);
+                boolean isFocused = isWindowFocusedOnMonitor(topWindow, rect, foregroundWindow, currentThreadId);
 
                 if (!windowTitle.isEmpty() && !isSystemWindow(windowTitle)) {
                     MonitorActivity activity = new MonitorActivity(windowTitle, applicationName, isFocused);
@@ -40,21 +52,93 @@ public class MultiMonitorTracker {
         return monitorActivity;
     }
 
-    private static boolean isWindowFocusedOnMonitor(WinDef.HWND hwnd, WinUser.RECT monitorRect) {
-        // Check if the window is the foreground window and is within the monitor's boundaries
-        WinDef.HWND foregroundWindow = user32.GetForegroundWindow();
-        if (foregroundWindow == hwnd) {
-            WinUser.RECT windowRect = new WinUser.RECT();
-            user32.GetWindowRect(hwnd, windowRect);
-            return isWindowOnMonitor(windowRect, monitorRect);
+
+    private static String getApplicationName(WinDef.HWND hwnd) {
+        if (hwnd == null) {
+            return "Unknown";
         }
+
+        IntByReference processId = new IntByReference();
+        user32.GetWindowThreadProcessId(hwnd, processId);
+
+        WinNT.HANDLE processHandle = kernel32.OpenProcess(
+                Kernel32.PROCESS_QUERY_INFORMATION | Kernel32.PROCESS_VM_READ,
+                false,
+                processId.getValue()
+        );
+        if (processHandle == null) {
+            return "Unknown";
+        }
+
+        try {
+            char[] buffer = new char[1024];
+            psapi.GetModuleFileNameExW(processHandle, null, buffer, buffer.length);
+            String executablePath = Native.toString(buffer).trim();
+            return extractApplicationName(executablePath);
+        } finally {
+            kernel32.CloseHandle(processHandle);
+        }
+    }
+
+    private static String getWindowTitle(WinDef.HWND hwnd) {
+        int length = user32.GetWindowTextLength(hwnd) + 1;
+        char[] buffer = new char[length];
+        user32.GetWindowText(hwnd, buffer, length);
+        return new String(buffer).trim();
+    }
+
+    private static String extractApplicationName(String executablePath) {
+        if (executablePath == null || executablePath.isEmpty()) {
+            return "Unknown";
+        }
+        String fileName = executablePath.substring(executablePath.lastIndexOf('\\') + 1);
+        return fileName.substring(0, fileName.lastIndexOf('.'));
+    }
+
+    private static boolean isWindowFocusedOnMonitor(WinDef.HWND hwnd, WinUser.RECT monitorRect,
+                                                    WinDef.HWND foregroundWindow,
+                                                    int currentThreadId) {
+        // Check if the window is on this monitor
+        WinUser.RECT windowRect = new WinUser.RECT();
+        user32.GetWindowRect(hwnd, windowRect);
+        if (!isWindowOnMonitor(windowRect, monitorRect)) {
+            return false;
+        }
+
+        // If this is the foreground window, it's definitely focused
+        if (hwnd.equals(foregroundWindow)) {
+            return true;
+        }
+
+        // Get the thread info for this window
+        WinDef.DWORD windowThreadId = new WinDef.DWORD(
+                user32.GetWindowThreadProcessId(hwnd, null)
+        );
+
+        // Attach to the input processing mechanism of the window's thread
+        user32.AttachThreadInput(new WinDef.DWORD(currentThreadId),
+                windowThreadId,
+                true);
+
+        try {
+            // Get the window with focus in this thread
+            WinDef.HWND focusedWindow = user32.GetActiveWindow();
+            if (focusedWindow != null) {
+                return focusedWindow.equals(hwnd);
+            }
+        } finally {
+            // Always detach the thread input
+            user32.AttachThreadInput(new WinDef.DWORD(currentThreadId),
+                    windowThreadId,
+                    false);
+        }
+
         return false;
     }
 
     private static WinDef.HWND getTopWindowOnMonitor(WinUser.RECT monitorRect) {
         WinDef.HWND hwnd = user32.GetForegroundWindow();
-        WinDef.HWND topWindow = null;
-        int topZOrder = Integer.MAX_VALUE;
+        List<WindowInfo> windowsOnMonitor = new ArrayList<>();
 
         while (hwnd != null) {
             if (user32.IsWindowVisible(hwnd) && isTopLevelWindow(hwnd)) {
@@ -62,16 +146,16 @@ public class MultiMonitorTracker {
                 user32.GetWindowRect(hwnd, windowRect);
 
                 if (isWindowOnMonitor(windowRect, monitorRect)) {
-                    int zOrder = getZOrder(hwnd);
-                    if (zOrder < topZOrder) {
-                        topZOrder = zOrder;
-                        topWindow = hwnd;
-                    }
+                    windowsOnMonitor.add(new WindowInfo(hwnd, getZOrder(hwnd)));
                 }
             }
-            hwnd = user32.GetWindow(hwnd, new WinDef.DWORD(WinUser.GW_HWNDNEXT)); // Move to the next window
+            hwnd = user32.GetWindow(hwnd, new WinDef.DWORD(WinUser.GW_HWNDNEXT));
         }
-        return topWindow;
+
+        return windowsOnMonitor.stream()
+                .min(Comparator.comparingInt(WindowInfo::zOrder))
+                .map(WindowInfo::hwnd)
+                .orElse(null);
     }
 
     private static int getZOrder(WinDef.HWND hwnd) {
@@ -101,6 +185,11 @@ public class MultiMonitorTracker {
     }
 
     private static boolean isSystemWindow(String windowTitle) {
-        return windowTitle.equals("Program Manager") || windowTitle.equals("Default IME");
+        return windowTitle.equals("Program Manager") ||
+                windowTitle.equals("Default IME") ||
+                windowTitle.isEmpty();
+    }
+
+    private record WindowInfo(WinDef.HWND hwnd, int zOrder) {
     }
 }

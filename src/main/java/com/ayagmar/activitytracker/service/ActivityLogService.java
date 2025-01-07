@@ -69,7 +69,6 @@ public class ActivityLogService {
         this.repository.deleteAll();
     }
 
-    @PostConstruct
     public void afterPropertiesSet() {
         log.info("Deleting all logs");
         this.deleteAllLogs();

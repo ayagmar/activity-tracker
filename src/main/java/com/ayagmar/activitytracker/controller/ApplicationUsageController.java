@@ -20,10 +20,11 @@ public class ApplicationUsageController {
     public ApplicationUsageController(ApplicationUsageService usageService) {
         this.usageService = usageService;
     }
+
     @GetMapping("/calculate")
     public ApplicationUsageReport getApplicationUsage(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end) {
-        return null;
+        return usageService.calculateApplicationUsage(start, end);
     }
 }

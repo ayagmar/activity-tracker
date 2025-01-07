@@ -1,5 +1,6 @@
 package com.ayagmar.activitytracker.model;
 
+import com.ayagmar.activitytracker.process.MonitorActivity;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -25,5 +26,5 @@ public class ActivityLog {
     private long keyPresses;
     private double mouseMovement;
     private boolean isIdle;
-    private Map<String, MonitorActivity> activity;
+    private Map<String, MonitorActivity> monitorActivities;
 }

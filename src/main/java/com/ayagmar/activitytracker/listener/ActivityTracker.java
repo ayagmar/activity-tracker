@@ -2,6 +2,7 @@ package com.ayagmar.activitytracker.listener;
 
 import com.ayagmar.activitytracker.model.ActivityLog;
 import com.ayagmar.activitytracker.model.ActivityMetrics;
+import com.ayagmar.activitytracker.process.MonitorTrackingService;
 import com.ayagmar.activitytracker.service.ActivityLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +31,7 @@ public class ActivityTracker {
                 .middleClicks(metrics.getMiddleClicks())
                 .keyPresses(metrics.getKeyPresses())
                 .mouseMovement(metrics.getMouseMovement())
-                .activity(MultiMonitorTracker.trackMultiMonitor())
+                .monitorActivities(metrics.getMultiMonitorActivity())
                 .isIdle(isIdle)
                 .build();
 

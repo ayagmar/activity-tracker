@@ -1,5 +1,6 @@
 package com.ayagmar.activitytracker.model;
 
+import com.ayagmar.activitytracker.process.MonitorActivity;
 import lombok.Builder;
 import lombok.Value;
 

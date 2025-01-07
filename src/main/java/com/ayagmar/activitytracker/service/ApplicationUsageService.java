@@ -3,7 +3,7 @@ package com.ayagmar.activitytracker.service;
 import com.ayagmar.activitytracker.model.ActivityLog;
 import com.ayagmar.activitytracker.model.ApplicationUsageReport;
 import com.ayagmar.activitytracker.model.ApplicationUsageStat;
-import com.ayagmar.activitytracker.model.MonitorActivity;
+import com.ayagmar.activitytracker.process.MonitorActivity;
 import com.ayagmar.activitytracker.repository.ActivityLogRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -73,14 +73,14 @@ public class ApplicationUsageService {
     }
 
     private boolean hasFocusedWindow(ActivityLog log) {
-        return log.getActivity().values().stream().anyMatch(MonitorActivity::focused);
+        return log.getMonitorActivities().values().stream().anyMatch(MonitorActivity::isFocused);
     }
 
     private void processFocusedApplication(ActivityLog log, Map<String, Integer> appUsageMinutes) {
-        log.getActivity().values().stream()
-                .filter(MonitorActivity::focused)
+        log.getMonitorActivities().values().stream()
+                .filter(MonitorActivity::isFocused)
                 .forEach(activity ->
-                        appUsageMinutes.merge(activity.activeApplication(), 1, Integer::sum));
+                        appUsageMinutes.merge(activity.getApplicationName(), 1, Integer::sum));
     }
 
     private List<ApplicationUsageStat> createApplicationStats(Map<String, Integer> appUsageMinutes, int totalActiveMinutes) {

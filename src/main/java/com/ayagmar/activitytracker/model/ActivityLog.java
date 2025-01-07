@@ -25,6 +25,5 @@ public class ActivityLog {
     private long keyPresses;
     private double mouseMovement;
     private boolean isIdle;
-    private long idleDuration;
     private Map<String, MonitorActivity> activity;
 }

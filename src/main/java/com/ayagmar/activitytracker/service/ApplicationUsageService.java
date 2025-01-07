@@ -18,6 +18,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -27,90 +28,103 @@ public class ApplicationUsageService {
     private final ActivityLogRepository repository;
 
     public ApplicationUsageReport calculateApplicationUsage(LocalDateTime start, LocalDateTime end) {
-        if (start == null && end == null) {
-            end = LocalDateTime.now();
-            start = end.minusDays(1);
-        } else if (start == null) {
-            start = end.minusDays(1);
-        } else if (end == null) {
-            end = start.plusDays(1);
-        }
+        end = Optional.ofNullable(end).orElse(LocalDateTime.now());
+        start = Optional.ofNullable(start).orElse(end.minusDays(1));
 
-        List<ActivityLog> logs = repository.findByTimestampBetween(start, end);
+        List<ActivityLog> logs = repository.findByTimestampBetween(start, end)
+                .stream()
+                .sorted(Comparator.comparing(ActivityLog::getTimestamp))
+                .toList();
+
         if (logs.isEmpty()) {
-            return ApplicationUsageReport.builder()
-                    .startDate(start)
-                    .endDate(end)
-                    .totalActiveMinutes(0)
-                    .totalIdleMinutes(0)
-                    .applicationStats(List.of())
-                    .build();
+            return createEmptyReport(start, end);
         }
 
-        // Calculate total minutes in the period
-        long totalMinutes = ChronoUnit.MINUTES.between(start, end);
+        Map<String, Integer> appUsageMinutes = new HashMap<>();
+        int totalActiveMinutes = 0;
+        int totalIdleMinutes = 0;
 
-        // Track application usage with focus state
-        Map<String, Long> applicationActiveMinutes = new HashMap<>();
-        long totalActiveMinutes = 0;
-        long totalIdleMinutes = 0;
-
-        // Process each log entry
-        for (int i = 0; i < logs.size(); i++) {
-            ActivityLog currentLog = logs.get(i);
-            ActivityLog nextLog = (i < logs.size() - 1) ? logs.get(i + 1) : null;
-
-            // Calculate duration until next log or end time
-            LocalDateTime currentTime = currentLog.getTimestamp();
-            LocalDateTime nextTime = (nextLog != null) ? nextLog.getTimestamp() : end;
-            long minutesDuration = ChronoUnit.MINUTES.between(currentTime, nextTime);
-
-            // Skip if the duration is 0
-            if (minutesDuration == 0) continue;
-
-            // Process idle time
-            if (currentLog.isIdle()) {
-                totalIdleMinutes += minutesDuration;
+        // Process each log as a discrete minute
+        for (ActivityLog log : logs) {
+            if (log.isIdle()) {
+                totalIdleMinutes++;
                 continue;
             }
 
-            // Process active time
-            totalActiveMinutes += minutesDuration;
-
-            // Process application usage for each monitor
-            Map<String, MonitorActivity> monitorActivities = currentLog.getActivity();
-            for (MonitorActivity activity : monitorActivities.values()) {
-                if (activity.focused()) {
-                    String appName = activity.activeApplication();
-                    applicationActiveMinutes.merge(appName, minutesDuration, Long::sum);
-                }
+            if (hasFocusedWindow(log)) {
+                totalActiveMinutes++;
+                processFocusedApplication(log, appUsageMinutes);
             }
         }
 
-        // Calculate application usage statistics
-        long finalTotalActiveMinutes = totalActiveMinutes;
-        List<ApplicationUsageStat> applicationStats = applicationActiveMinutes.entrySet().stream()
-                .map(entry -> {
-                    double usagePercentage = (finalTotalActiveMinutes > 0)
-                            ? (entry.getValue() * 100.0) / finalTotalActiveMinutes
-                            : 0.0;
+        // Create application stats and adjust the usage percentage
+        List<ApplicationUsageStat> appStats = createApplicationStats(appUsageMinutes, totalActiveMinutes);
 
-                    return ApplicationUsageStat.builder()
-                            .applicationName(entry.getKey())
-                            .usageDurationInMinutes(entry.getValue())
-                            .usagePercentage(Math.round(usagePercentage * 100.0) / 100.0) // Round to 2 decimal places
-                            .build();
-                })
-                .sorted(Comparator.comparingLong(ApplicationUsageStat::getUsageDurationInMinutes).reversed())
-                .collect(Collectors.toList());
+        // Adjust the total active minutes' usage percentages to sum to 100%
+        adjustUsagePercentages(appStats);
 
         return ApplicationUsageReport.builder()
                 .startDate(start)
                 .endDate(end)
                 .totalActiveMinutes(totalActiveMinutes)
                 .totalIdleMinutes(totalIdleMinutes)
-                .applicationStats(applicationStats)
+                .applicationStats(appStats)
                 .build();
     }
 
+    private boolean hasFocusedWindow(ActivityLog log) {
+        return log.getActivity().values().stream().anyMatch(MonitorActivity::focused);
+    }
+
+    private void processFocusedApplication(ActivityLog log, Map<String, Integer> appUsageMinutes) {
+        log.getActivity().values().stream()
+                .filter(MonitorActivity::focused)
+                .forEach(activity ->
+                        appUsageMinutes.merge(activity.activeApplication(), 1, Integer::sum));
+    }
+
+    private List<ApplicationUsageStat> createApplicationStats(Map<String, Integer> appUsageMinutes, int totalActiveMinutes) {
+        return appUsageMinutes.entrySet().stream()
+                .map(entry -> createApplicationStat(entry, totalActiveMinutes))
+                .sorted(Comparator.comparingLong(ApplicationUsageStat::getUsageDurationInMinutes).reversed())
+                .collect(Collectors.toList());
+    }
+
+    private ApplicationUsageStat createApplicationStat(Map.Entry<String, Integer> entry, int totalActiveMinutes) {
+        double percentage = totalActiveMinutes > 0
+                ? (entry.getValue() * 100.0) / totalActiveMinutes
+                : 0.0;
+
+        return ApplicationUsageStat.builder()
+                .applicationName(entry.getKey())
+                .usageDurationInMinutes(entry.getValue())
+                .usagePercentage(percentage)
+                .build();
+    }
+
+    private void adjustUsagePercentages(List<ApplicationUsageStat> appStats) {
+        // Calculate the total percentage across all apps
+        double totalPercentage = appStats.stream()
+                .mapToDouble(ApplicationUsageStat::getUsagePercentage)
+                .sum();
+
+        // Normalize percentages so they add up to 100%
+        if (totalPercentage > 0) {
+            double adjustmentFactor = 100.0 / totalPercentage;
+            for (ApplicationUsageStat stat : appStats) {
+                double adjustedPercentage = stat.getUsagePercentage() * adjustmentFactor;
+                stat.setUsagePercentage(Math.round(adjustedPercentage * 100.0) / 100.0); // Round to 2 decimal places
+            }
+        }
+    }
+
+    private ApplicationUsageReport createEmptyReport(LocalDateTime start, LocalDateTime end) {
+        return ApplicationUsageReport.builder()
+                .startDate(start)
+                .endDate(end)
+                .totalActiveMinutes(0)
+                .totalIdleMinutes(0)
+                .applicationStats(List.of())
+                .build();
+    }
 }

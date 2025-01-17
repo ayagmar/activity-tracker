@@ -14,4 +14,15 @@ public class ActivityTotals {
     private long totalMiddleClicks;
     private long totalKeyPresses;
     private double totalMouseMovement;
+
+    public static ActivityTotals createEmptyTotals(LocalDate date) {
+        return ActivityTotals.builder()
+                .date(date)
+                .totalLeftClicks(0L)
+                .totalRightClicks(0L)
+                .totalMiddleClicks(0L)
+                .totalKeyPresses(0L)
+                .totalMouseMovement(0.0)
+                .build();
+    }
 }

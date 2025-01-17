@@ -14,7 +14,7 @@ import java.util.Optional;
 
 @Component
 @Slf4j
-public class ProcessManager {
+public class ProcessTracker {
     private static final Kernel32 kernel32 = Kernel32.INSTANCE;
     private static final Psapi psapi = Psapi.INSTANCE;
     private static final User32 user32 = User32.INSTANCE;

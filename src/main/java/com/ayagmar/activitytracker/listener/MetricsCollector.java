@@ -1,7 +1,7 @@
 package com.ayagmar.activitytracker.listener;
 
 import com.ayagmar.activitytracker.model.ActivityMetrics;
-import com.ayagmar.activitytracker.process.MonitorTrackingService;
+import com.ayagmar.activitytracker.process.MonitorTracker;
 import com.github.kwhat.jnativehook.GlobalScreen;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
@@ -25,7 +25,7 @@ public class MetricsCollector implements NativeKeyListener, NativeMouseInputList
     private static final double DPI = 91.79;
     private final IdleStateManager idleStateManager;
     private final MousePositionTracker mousePositionTracker;
-    private final MonitorTrackingService monitorTrackingService;
+    private final MonitorTracker monitorTracker;
     private final AtomicLong leftClicks = new AtomicLong();
     private final AtomicLong rightClicks = new AtomicLong();
     private final AtomicLong middleClicks = new AtomicLong();
@@ -88,7 +88,7 @@ public class MetricsCollector implements NativeKeyListener, NativeMouseInputList
                 .middleClicks(middleClicks.get())
                 .keyPresses(keyPresses.get())
                 .mouseMovement(mouseMovement.doubleValue())
-                .multiMonitorActivity(monitorTrackingService.trackAllMonitors())
+                .multiMonitorActivity(monitorTracker.trackAllMonitors())
                 .isIdle(idleStateManager.isIdle())
                 .build();
 

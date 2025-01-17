@@ -1,12 +1,11 @@
-package com.ayagmar.activitytracker.controller;
+package com.ayagmar.activitytracker.rest;
 
 import com.ayagmar.activitytracker.model.ActivityLog;
 import com.ayagmar.activitytracker.model.ActivityTotals;
 import com.ayagmar.activitytracker.service.ActivityLogService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;

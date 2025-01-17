@@ -1,5 +1,6 @@
 package com.ayagmar.activitytracker.process;
 
+import com.ayagmar.activitytracker.model.ApplicationType;
 import com.sun.jna.platform.win32.Kernel32;
 import com.sun.jna.platform.win32.User32;
 import com.sun.jna.platform.win32.WinDef;
@@ -16,9 +17,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class MonitorTrackingService {
+public class MonitorTracker {
     private final WindowManager windowManager;
-    private final ProcessManager processManager;
+    private final ProcessTracker processTracker;
 
     public Map<String, MonitorActivity> trackAllMonitors() {
         Map<String, MonitorActivity> monitorActivity = new HashMap<>();
@@ -30,7 +31,7 @@ public class MonitorTrackingService {
         User32.INSTANCE.EnumDisplayMonitors(null, null,
                 (hMonitor, hdc, rect, data) -> {
                     String monitorId = String.format("Monitor-%d", monitorIndex.getAndIncrement());
-                    trackMonitorActivity(monitorId, rect, foregroundWindow, currentThreadId)
+                    trackMonitorActivity(rect, foregroundWindow, currentThreadId)
                             .ifPresent(activity -> monitorActivity.put(monitorId, activity));
                     return 1;
                 }, null);
@@ -39,7 +40,6 @@ public class MonitorTrackingService {
     }
 
     private Optional<MonitorActivity> trackMonitorActivity(
-            String monitorId,
             WinUser.RECT monitorRect,
             WinDef.HWND foregroundWindow,
             int currentThreadId) {
@@ -53,17 +53,18 @@ public class MonitorTrackingService {
             WinDef.HWND foregroundWindow,
             int currentThreadId) {
         String windowTitle = window.getTitle();
-        ProcessInfo processInfo = processManager.getProcessInfo(window.getHwnd());
+        ProcessInfo processInfo = processTracker.getProcessInfo(window.getHwnd());
         boolean isFocused = windowManager.isWindowFocused(
                 window.getHwnd(),
                 monitorRect,
                 foregroundWindow,
                 currentThreadId
         );
-
+        ApplicationType applicationType = ApplicationType.fromProcessName(processInfo.name());
+        String appName = Optional.ofNullable(applicationType).map(type -> type.displayName()).orElse(processInfo.name());
         return MonitorActivity.builder()
                 .windowTitle(windowTitle)
-                .applicationName(processInfo.name())
+                .applicationName(appName)
                 .isFocused(isFocused)
                 .build();
     }

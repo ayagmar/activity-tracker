@@ -1,11 +1,14 @@
 package com.ayagmar.activitytracker.process;
 
 import lombok.Builder;
-import lombok.Value;
-@Value
+import lombok.Getter;
+import lombok.Setter;
+
 @Builder
+@Getter
 public class MonitorActivity {
     String windowTitle;
+    @Setter
     String applicationName;
     boolean isFocused;
 }

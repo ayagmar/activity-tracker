@@ -2,7 +2,6 @@ package com.ayagmar.activitytracker.listener;
 
 import com.ayagmar.activitytracker.model.ActivityLog;
 import com.ayagmar.activitytracker.model.ActivityMetrics;
-import com.ayagmar.activitytracker.process.MonitorTrackingService;
 import com.ayagmar.activitytracker.service.ActivityLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +13,7 @@ import java.util.concurrent.TimeUnit;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class ActivityTracker {
+public class UserActivityListener {
     private final MetricsCollector metricsCollector;
     private final IdleStateManager idleStateManager;
     private final ActivityLogService activityLogService;

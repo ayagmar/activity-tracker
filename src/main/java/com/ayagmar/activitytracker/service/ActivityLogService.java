@@ -23,9 +23,9 @@ public class ActivityLogService {
     private final ActivityLogRepository repository;
     private final Clock clock;
 
-    public ActivityLog saveLog(ActivityLog log) {
+    public void saveLog(ActivityLog log) {
         log.setTimestamp(LocalDateTime.now());
-        return repository.save(log);
+        repository.save(log);
     }
 
 

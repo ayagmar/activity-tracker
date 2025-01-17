@@ -46,12 +46,15 @@ public class ProcessTracker {
     }
 
     private ProcessInfo getProcessName(ProcessHandle handle) {
-        char[] buffer = new char[1024];
-        psapi.GetModuleFileNameExW(handle.getHandle(), null, buffer, buffer.length);
+        char[] buffer = new char[260];
+        int result = psapi.GetModuleFileNameExW(handle.getHandle(), null, buffer, buffer.length);
+        if (result == 0) {
+            log.error("Failed to get process name: {}", Kernel32.INSTANCE.GetLastError());
+            return ProcessInfo.unknown();
+        }
         String executablePath = Native.toString(buffer).trim();
         return new ProcessInfo(extractApplicationName(executablePath));
     }
-
     private String extractApplicationName(String executablePath) {
         if (executablePath == null || executablePath.isEmpty()) {
             return "Unknown";

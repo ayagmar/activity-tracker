@@ -7,10 +7,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.awt.*;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 @Component
 @Slf4j
@@ -24,20 +25,13 @@ public class WindowManager {
     }
 
     private List<Window> getVisibleWindowsOnMonitor(WinUser.RECT monitorRect) {
-        List<Window> windows = new ArrayList<>();
-        WinDef.HWND hwnd = user32.GetForegroundWindow();
-
-        while (hwnd != null) {
-            if (isValidWindow(hwnd)) {
-                WinUser.RECT windowRect = getWindowRect(hwnd);
-                if (isWindowOnMonitor(windowRect, monitorRect)) {
-                    windows.add(new Window(hwnd, getZOrder(hwnd)));
-                }
-            }
-            hwnd = user32.GetWindow(hwnd, new WinDef.DWORD(WinUser.GW_HWNDNEXT));
-        }
-
-        return windows;
+        return StreamSupport.stream(
+                        new WindowIterator(user32.GetForegroundWindow()).spliterator(),
+                        false)
+                .filter(this::isValidWindow)
+                .filter(hwnd -> isWindowOnMonitor(getWindowRect(hwnd), monitorRect))
+                .map(hwnd -> new Window(hwnd, getZOrder(hwnd)))
+                .collect(Collectors.toList());
     }
 
     public boolean isWindowFocused(

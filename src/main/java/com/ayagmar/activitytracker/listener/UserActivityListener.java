@@ -5,9 +5,11 @@ import com.ayagmar.activitytracker.model.ActivityMetrics;
 import com.ayagmar.activitytracker.service.ActivityLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
 
 @Component
@@ -20,7 +22,6 @@ public class UserActivityListener {
 
     @Scheduled(fixedRateString = "${activity.logging.interval:1}", timeUnit = TimeUnit.MINUTES, initialDelay = 1)
     public void logActivity() {
-        log.info("Recording activity metrics");
         ActivityMetrics metrics = metricsCollector.collectAndReset();
         boolean isIdle = idleStateManager.isIdle();
 
@@ -33,7 +34,13 @@ public class UserActivityListener {
                 .monitorActivities(metrics.getMultiMonitorActivity())
                 .isIdle(isIdle)
                 .build();
-
+        loggerActivity();
         activityLogService.saveLog(activityLog);
+    }
+
+    void loggerActivity() {
+        MDC.put("date", LocalDateTime.now().toString());
+        log.info("Recording activity metrics");
+        MDC.clear();
     }
 }

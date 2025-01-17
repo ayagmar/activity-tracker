@@ -7,10 +7,13 @@ import com.ayagmar.activitytracker.process.MonitorActivity;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Component
@@ -68,19 +71,24 @@ class ActivityUsageCalculator {
 
     private List<ApplicationUsageStat> createApplicationStats() {
         return appUsageMinutes.entrySet().stream()
-                .map(this::createApplicationStat)
-                .sorted(Comparator.comparingLong(ApplicationUsageStat::getUsageDurationInMinutes).reversed())
-                .toList();
+                .filter(entry -> entry.getValue() > 0) // Filter out unused applications
+                .collect(Collectors.collectingAndThen(
+                        Collectors.toMap(
+                                Map.Entry::getKey,
+                                entry -> ApplicationUsageStat.builder()
+                                        .applicationName(entry.getKey())
+                                        .usageDurationInMinutes(entry.getValue())
+                                        .usagePercentage(calculatePercentage(entry.getValue()))
+                                        .build(),
+                                (a, b) -> a,
+                                () -> new TreeMap<>(
+                                        Comparator.<String, Integer>comparing(appUsageMinutes::get).reversed()
+                                )
+                        ),
+                        map -> new ArrayList<>(map.values())
+                ));
     }
 
-    private ApplicationUsageStat createApplicationStat(Map.Entry<String, Integer> entry) {
-        double percentage = calculatePercentage(entry.getValue());
-        return ApplicationUsageStat.builder()
-                .applicationName(entry.getKey())
-                .usageDurationInMinutes(entry.getValue())
-                .usagePercentage(percentage)
-                .build();
-    }
 
     private double calculatePercentage(int minutes) {
         return totalActiveMinutes > 0 ? (minutes * 100.0) / totalActiveMinutes : 0.0;

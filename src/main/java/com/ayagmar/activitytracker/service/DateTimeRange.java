@@ -20,9 +20,9 @@ public class DateTimeRange {
         );
     }
 
-    public static DateTimeRange ofPlusMonth(LocalDate date) {
+    public static DateTimeRange ofPlusMonth(LocalDate date, int months) {
         return DateTimeRange.of(
                 date.atStartOfDay(),
-                LocalDateTime.of(date.plusMonths(1), LocalTime.MAX));
+                LocalDateTime.of(date.plusMonths(months), LocalTime.MAX));
     }
 }

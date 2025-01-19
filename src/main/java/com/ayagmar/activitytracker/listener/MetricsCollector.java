@@ -1,8 +1,8 @@
 package com.ayagmar.activitytracker.listener;
 
+import com.ayagmar.activitytracker.config.MetricsConfiguration;
 import com.ayagmar.activitytracker.model.ActivityMetrics;
 import com.ayagmar.activitytracker.process.MonitorTracker;
-import com.github.kwhat.jnativehook.GlobalScreen;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
 import com.github.kwhat.jnativehook.mouse.NativeMouseEvent;
@@ -14,15 +14,14 @@ import org.springframework.stereotype.Component;
 
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.DoubleAdder;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 @Component
 @Slf4j
 @RequiredArgsConstructor
 public class MetricsCollector implements NativeKeyListener, NativeMouseInputListener {
     private static final double CENTIMETER_FACTOR = 2.54;
-    private static final double DPI = 91.79;
+    private final MetricsConfiguration metricsConfiguration;
+    private final NativeHookService nativeHookService;
     private final IdleStateManager idleStateManager;
     private final MousePositionTracker mousePositionTracker;
     private final MonitorTracker monitorTracker;
@@ -34,25 +33,11 @@ public class MetricsCollector implements NativeKeyListener, NativeMouseInputList
 
 
     @PostConstruct
-    public void initialize() throws Exception {
-        configureNativeHook();
-        registerListeners();
+    public void initialize() {
+        nativeHookService.addKeyListener(this);
+        nativeHookService.addMouseListener(this);
     }
 
-    private void configureNativeHook() throws Exception {
-        Logger logger = Logger.getLogger(GlobalScreen.class.getPackage().getName());
-        logger.setLevel(Level.OFF);
-
-        if (!GlobalScreen.isNativeHookRegistered()) {
-            GlobalScreen.registerNativeHook();
-        }
-    }
-
-    private void registerListeners() {
-        GlobalScreen.addNativeKeyListener(this);
-        GlobalScreen.addNativeMouseListener(this);
-        GlobalScreen.addNativeMouseMotionListener(this);
-    }
 
     @Override
     public void nativeKeyPressed(NativeKeyEvent e) {
@@ -78,7 +63,7 @@ public class MetricsCollector implements NativeKeyListener, NativeMouseInputList
     }
 
     private double convertToMetric(double pixels) {
-        return (pixels / DPI) * CENTIMETER_FACTOR;
+        return (pixels / metricsConfiguration.getDpi()) * CENTIMETER_FACTOR;
     }
 
     public ActivityMetrics collectAndReset() {

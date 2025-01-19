@@ -61,7 +61,7 @@ public class MonitorTracker {
                 currentThreadId
         );
         ApplicationType applicationType = ApplicationType.fromProcessName(processInfo.name());
-        String appName = Optional.ofNullable(applicationType).map(type -> type.displayName()).orElse(processInfo.name());
+        String appName = Optional.ofNullable(applicationType).map(ApplicationType::displayName).orElse(processInfo.name());
         return MonitorActivity.builder()
                 .windowTitle(windowTitle)
                 .applicationName(appName)

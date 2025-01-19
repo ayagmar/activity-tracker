@@ -23,12 +23,6 @@ public class ActivityLogService {
     private final ActivityLogRepository repository;
     private final Clock clock;
 
-    public void saveLog(ActivityLog log) {
-        log.setTimestamp(LocalDateTime.now());
-        repository.save(log);
-    }
-
-
     public List<ActivityLog> getLogsByDateRange(LocalDateTime start, LocalDateTime end) {
         return repository.findByTimestampBetween(start, end);
     }
@@ -78,14 +72,5 @@ public class ActivityLogService {
         return repository.findAll();
     }
 
-    public void deleteAllLogs() {
-        this.repository.deleteAll();
-    }
-
-
-    public void afterPropertiesSet() {
-        log.info("Deleting all logs");
-        this.deleteAllLogs();
-    }
 
 }

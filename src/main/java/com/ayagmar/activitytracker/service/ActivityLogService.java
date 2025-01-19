@@ -2,11 +2,14 @@ package com.ayagmar.activitytracker.service;
 
 import com.ayagmar.activitytracker.model.ActivityLog;
 import com.ayagmar.activitytracker.model.ActivityTotals;
-import com.ayagmar.activitytracker.repository.ActivityLogRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.bson.Document;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.aggregation.Aggregation;
+import org.springframework.data.mongodb.core.aggregation.AggregationResults;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDate;
@@ -16,15 +19,17 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
-@Transactional
 public class ActivityLogService {
-
-    private final ActivityLogRepository repository;
+    private final MongoTemplate mongoTemplate;
     private final Clock clock;
 
     public List<ActivityLog> getLogsByDateRange(LocalDateTime start, LocalDateTime end) {
-        return repository.findByTimestampBetween(start, end);
+        Criteria criteria = Criteria.where("timestamp")
+                .gte(start)
+                .lte(end);
+
+        Query query = Query.query(criteria);
+        return mongoTemplate.find(query, ActivityLog.class);
     }
 
     public ActivityTotals getActivityTotals(LocalDate date) {
@@ -33,44 +38,51 @@ public class ActivityLogService {
 
         DateTimeRange dateRange = DateTimeRange.ofFullDay(targetDate);
 
-        List<ActivityLog> logs = repository.findByTimestampBetween(
-                dateRange.getStart(),
-                dateRange.getEnd()
+        Aggregation aggregation = Aggregation.newAggregation(
+                Aggregation.match(
+                        Criteria.where("timestamp")
+                                .gte(dateRange.getStart())
+                                .lte(dateRange.getEnd())
+                ),
+                Aggregation.group()
+                        .sum("leftClicks").as("totalLeftClicks")
+                        .sum("rightClicks").as("totalRightClicks")
+                        .sum("middleClicks").as("totalMiddleClicks")
+                        .sum("keyPresses").as("totalKeyPresses")
+                        .sum("mouseMovement").as("totalMouseMovement")
+                        .first("timestamp").as("timestamp")
         );
 
-        return logs.stream()
-                .reduce(
-                        ActivityTotals.createEmptyTotals(targetDate),
-                        this::accumulateActivityLog,
-                        this::combineActivityTotals
-                );
-    }
+        AggregationResults<Document> results = mongoTemplate.aggregate(
+                aggregation,
+                ActivityLog.class,
+                Document.class
+        );
 
-    private ActivityTotals accumulateActivityLog(ActivityTotals totals, ActivityLog log) {
+        Document result = results.getUniqueMappedResult();
+
+        if (result == null) {
+            return ActivityTotals.createEmptyTotals(targetDate);
+        }
+
         return ActivityTotals.builder()
-                .date(totals.getDate())
-                .totalLeftClicks(totals.getTotalLeftClicks() + log.getLeftClicks())
-                .totalRightClicks(totals.getTotalRightClicks() + log.getRightClicks())
-                .totalMiddleClicks(totals.getTotalMiddleClicks() + log.getMiddleClicks())
-                .totalKeyPresses(totals.getTotalKeyPresses() + log.getKeyPresses())
-                .totalMouseMovement(totals.getTotalMouseMovement() + log.getMouseMovement())
+                .date(targetDate)
+                .totalLeftClicks(getLongValue(result, "totalLeftClicks"))
+                .totalRightClicks(getLongValue(result, "totalRightClicks"))
+                .totalMiddleClicks(getLongValue(result, "totalMiddleClicks"))
+                .totalKeyPresses(getLongValue(result, "totalKeyPresses"))
+                .totalMouseMovement(getLongValue(result, "totalMouseMovement"))
                 .build();
     }
 
-    private ActivityTotals combineActivityTotals(ActivityTotals first, ActivityTotals second) {
-        return ActivityTotals.builder()
-                .date(first.getDate())
-                .totalLeftClicks(first.getTotalLeftClicks() + second.getTotalLeftClicks())
-                .totalRightClicks(first.getTotalRightClicks() + second.getTotalRightClicks())
-                .totalMiddleClicks(first.getTotalMiddleClicks() + second.getTotalMiddleClicks())
-                .totalKeyPresses(first.getTotalKeyPresses() + second.getTotalKeyPresses())
-                .totalMouseMovement(first.getTotalMouseMovement() + second.getTotalMouseMovement())
-                .build();
+    private long getLongValue(Document document, String key) {
+        Number value = (Number) document.get(key);
+        return value != null ? value.longValue() : 0L;
     }
 
     public List<ActivityLog> getAllLogs() {
-        return repository.findAll();
+        return mongoTemplate.findAll(ActivityLog.class);
     }
-
-
 }
+
+

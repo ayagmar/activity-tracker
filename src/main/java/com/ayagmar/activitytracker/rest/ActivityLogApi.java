@@ -2,6 +2,7 @@ package com.ayagmar.activitytracker.rest;
 
 import com.ayagmar.activitytracker.model.ActivityLog;
 import com.ayagmar.activitytracker.model.ActivityTotals;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -17,6 +18,7 @@ import java.util.List;
 @CrossOrigin
 public interface ActivityLogApi {
     @GetMapping
+    @Cacheable
     ResponseEntity<List<ActivityLog>> getAllLogs();
 
     @GetMapping("/totals")

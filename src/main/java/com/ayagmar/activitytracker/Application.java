@@ -9,8 +9,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import java.time.Clock;
 
 @SpringBootApplication
-@EnableMongoRepositories(basePackages = "com.ayagmar.activitytracker.repository")
 @EnableScheduling
+@EnableMongoRepositories(basePackages = "com.ayagmar.activitytracker.repository")
 public class Application {
 
     public static void main(String[] args) {

@@ -9,6 +9,6 @@ import org.springframework.context.annotation.Configuration;
 @ConfigurationProperties(prefix = "activity.metrics")
 @Getter
 @Setter
-public class MetricsConfiguration {
+public class DpiConfiguration {
     private double dpi = 0.0;
 }

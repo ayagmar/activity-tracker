@@ -13,23 +13,16 @@ import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 
-import static com.ayagmar.activitytracker.model.ApplicationUsageReport.createEmptyReport;
-
 @Service
 @RequiredArgsConstructor
 public class ActivityUsageService {
     private final ActivityLogRepository repository;
     private final Clock clock;
+    private final ActivityUsageCalculator activityUsageCalculator;
 
     public ApplicationUsageReport calculateApplicationUsage(LocalDateTime start, LocalDateTime end) {
         DateTimeRange dateRange = createDateRange(start, end);
         List<ActivityLog> logs = fetchSortedLogs(dateRange);
-
-        if (logs.isEmpty()) {
-            return createEmptyReport(dateRange);
-        }
-
-        ActivityUsageCalculator activityUsageCalculator = new ActivityUsageCalculator();
         return activityUsageCalculator.calculateReport(dateRange, logs);
     }
 

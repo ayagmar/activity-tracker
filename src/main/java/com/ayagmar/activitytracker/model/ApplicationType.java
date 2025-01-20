@@ -3,68 +3,87 @@ package com.ayagmar.activitytracker.model;
 import java.util.Set;
 
 
-public record ApplicationType(String displayName, String category, Set<String> processNames,
-                              boolean allowsMultipleInstances) {
-    public static final ApplicationType BROWSER = new ApplicationType(
+public enum ApplicationType {
+    BROWSER(
             "Web Browser",
             "General",
             Set.of("librewolf", "msedge", "chrome", "firefox"),
             true
-    );
-
-    public static final ApplicationType IDE = new ApplicationType(
+    ),
+    IDE(
             "Intellij Idea",
             "Coding",
             Set.of("idea64"),
             true
-    );
-
-    public static final ApplicationType API_CLIENT = new ApplicationType(
+    ),
+    API_CLIENT(
             "API Client",
             "Coding",
             Set.of("postman"),
             true
-    );
-
-    public static final ApplicationType COMMUNICATION = new ApplicationType(
+    ),
+    COMMUNICATION(
             "Discord",
             "Communication",
             Set.of("discord"),
             true
-    );
-
-    public static final ApplicationType GAMING = new ApplicationType(
+    ),
+    GAMING(
             "Valorant",
             "Gaming",
             Set.of("valorant-win64-shipping"),
             false
-    );
-
-    public static final ApplicationType MMO = new ApplicationType(
+    ),
+    MMO(
             "Final Fantasy XIV",
             "Gaming",
             Set.of("ffxiv_dx11"),
             false
-    );
-
-    public static final ApplicationType RIVALS = new ApplicationType(
+    ),
+    RIVALS(
             "Marvel Rivals",
             "Gaming",
             Set.of("marvel-win64-shipping"),
             false
     );
 
-    private static final Set<ApplicationType> REGISTRY = Set.of(
-            BROWSER, IDE, API_CLIENT, COMMUNICATION, GAMING, MMO, RIVALS
-    );
+    private final String displayName;
+    private final String category;
+    private final Set<String> processNames;
+    private final boolean allowsMultipleInstances;
 
-    public static ApplicationType fromProcessName(String processName) {
-        return REGISTRY.stream()
-                .filter(applicationType -> applicationType.matchesProcess(processName))
-                .findFirst().orElse(null);
+    ApplicationType(String displayName, String category,
+                    Set<String> processNames, boolean allowsMultipleInstances) {
+        this.displayName = displayName;
+        this.category = category;
+        this.processNames = processNames;
+        this.allowsMultipleInstances = allowsMultipleInstances;
     }
 
-    boolean matchesProcess(String processName) {
-        return processNames.contains(processName.toLowerCase());
+    public static ApplicationType fromProcessName(String processName) {
+        String lowerName = processName.toLowerCase();
+        for (ApplicationType type : values()) {
+            if (type.processNames.contains(lowerName)) {
+                return type;
+            }
+        }
+        return null;
+    }
+
+    // Getters
+    public String displayName() {
+        return displayName;
+    }
+
+    public String category() {
+        return category;
+    }
+
+    public Set<String> processNames() {
+        return processNames;
+    }
+
+    public boolean allowsMultipleInstances() {
+        return allowsMultipleInstances;
     }
 }

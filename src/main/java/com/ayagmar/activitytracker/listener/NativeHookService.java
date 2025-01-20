@@ -4,6 +4,7 @@ import com.github.kwhat.jnativehook.GlobalScreen;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
 import com.github.kwhat.jnativehook.mouse.NativeMouseInputListener;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -19,6 +20,7 @@ public class NativeHookService {
         logger.setLevel(Level.OFF);
 
         if (!GlobalScreen.isNativeHookRegistered()) {
+            log.info("Registering native hook");
             GlobalScreen.registerNativeHook();
         }
     }
@@ -30,5 +32,17 @@ public class NativeHookService {
     public void addMouseListener(NativeMouseInputListener listener) {
         GlobalScreen.addNativeMouseListener(listener);
         GlobalScreen.addNativeMouseMotionListener(listener);
+    }
+
+    @PreDestroy
+    public void destroy() {
+        if (GlobalScreen.isNativeHookRegistered()) {
+            try {
+                log.info("Removing native hook");
+                GlobalScreen.unregisterNativeHook();
+            } catch (Exception e) {
+                log.error("Error unregistering native hook: {}", e.getMessage());
+            }
+        }
     }
 }

@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
@@ -19,6 +20,7 @@ public class ActivityLog {
     @Id
     private String id;
     @Setter
+    @Indexed(expireAfter = "P30D")
     private LocalDateTime timestamp;
     private long leftClicks;
     private long rightClicks;

@@ -24,7 +24,7 @@ public class UserActivityListener {
     @Scheduled(fixedRateString = "${activity.logging.interval:1}", timeUnit = TimeUnit.MINUTES, initialDelay = 1)
     public void logActivity() {
         ActivityMetrics metrics = metricsHolder.collectAndReset();
-        boolean isIdle = idleStateManager.isIdle();
+        boolean isIdle = idleStateManager.checkAndSetIdleStatus();
         Map<String, MonitorActivity> monitorActivities = monitorTracker.trackAllMonitors();
 
         ActivityLog activityLog = ActivityLog.builder()

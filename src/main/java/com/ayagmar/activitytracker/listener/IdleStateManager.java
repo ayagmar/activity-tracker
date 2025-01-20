@@ -4,42 +4,50 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.Optional;
 
 @Component
 @Slf4j
 public class IdleStateManager {
-    @Value("${activity.idle.threshold-minutes:5}")
-    private int idleThresholdMinutes;
+    private final Clock clock;
+    private final int idleThresholdMinutes;
 
-    private volatile LocalDateTime lastActivityTime = LocalDateTime.now();
+    private volatile LocalDateTime lastActivityTime;
     private volatile LocalDateTime idleStartTime;
     private volatile boolean userIdle = false;
 
-    public void updateActivity() {
-        lastActivityTime = LocalDateTime.now();
+    public IdleStateManager(
+            @Value("${activity.idle.threshold-minutes:5}") int idleThresholdMinutes,
+            Clock clock) {
+        this.idleThresholdMinutes = idleThresholdMinutes;
+        this.clock = clock;
+        this.lastActivityTime = LocalDateTime.now(clock);
+    }
 
+    public void updateActivity() {
+        lastActivityTime = LocalDateTime.now(clock);
         if (userIdle) {
-            Duration idleDuration = Duration.between(idleStartTime, LocalDateTime.now());
+            Duration idleDuration = Duration.between(idleStartTime, LocalDateTime.now(clock));
             log.info("User returned from idle state after {} minutes", idleDuration.toMinutes());
             userIdle = false;
             idleStartTime = null;
         }
     }
 
-    public boolean isIdle() {
-        long idleMinutes = ChronoUnit.MINUTES.between(lastActivityTime, LocalDateTime.now());
+    public boolean checkAndSetIdleStatus() {
+        LocalDateTime now = LocalDateTime.now(clock);
+        long idleMinutes = ChronoUnit.MINUTES.between(lastActivityTime, now);
         boolean currentlyIdle = idleMinutes >= idleThresholdMinutes;
 
         if (currentlyIdle && !userIdle) {
             userIdle = true;
-            idleStartTime = LocalDateTime.now();
+            idleStartTime = now;
             log.info("User entered idle state");
         } else if (!currentlyIdle && userIdle) {
-            Duration idleDuration = Duration.between(idleStartTime, LocalDateTime.now());
+            Duration idleDuration = Duration.between(idleStartTime, now);
             log.info("User exited idle state after {} minutes", idleDuration.toMinutes());
             userIdle = false;
             idleStartTime = null;
@@ -48,18 +56,4 @@ public class IdleStateManager {
         return currentlyIdle;
     }
 
-
-    public Optional<Duration> getCurrentIdleDuration() {
-        if (!userIdle || idleStartTime == null) {
-            return Optional.empty();
-        }
-        return Optional.of(Duration.between(idleStartTime, LocalDateTime.now()));
-    }
-
-
-    public boolean isIdleLongerThan(Duration duration) {
-        return getCurrentIdleDuration()
-                .map(idleDuration -> idleDuration.compareTo(duration) > 0)
-                .orElse(false);
-    }
 }

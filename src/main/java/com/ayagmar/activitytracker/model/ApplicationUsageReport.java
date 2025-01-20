@@ -1,6 +1,6 @@
 package com.ayagmar.activitytracker.model;
 
-import com.ayagmar.activitytracker.service.DateTimeRange;
+import com.ayagmar.activitytracker.util.DateTimeRange;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;

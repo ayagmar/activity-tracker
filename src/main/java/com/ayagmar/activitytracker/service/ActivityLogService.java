@@ -2,6 +2,7 @@ package com.ayagmar.activitytracker.service;
 
 import com.ayagmar.activitytracker.model.ActivityLog;
 import com.ayagmar.activitytracker.model.ActivityTotals;
+import com.ayagmar.activitytracker.util.DateTimeRange;
 import lombok.RequiredArgsConstructor;
 import org.bson.Document;
 import org.springframework.data.mongodb.core.MongoTemplate;

@@ -4,6 +4,7 @@ import com.ayagmar.activitytracker.model.ActivityLog;
 import com.ayagmar.activitytracker.model.ApplicationUsageReport;
 import com.ayagmar.activitytracker.model.ApplicationUsageStat;
 import com.ayagmar.activitytracker.process.MonitorActivity;
+import com.ayagmar.activitytracker.util.DateTimeRange;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

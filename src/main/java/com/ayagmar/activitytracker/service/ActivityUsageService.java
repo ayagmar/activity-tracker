@@ -3,6 +3,7 @@ package com.ayagmar.activitytracker.service;
 import com.ayagmar.activitytracker.model.ActivityLog;
 import com.ayagmar.activitytracker.model.ApplicationUsageReport;
 import com.ayagmar.activitytracker.repository.ActivityLogRepository;
+import com.ayagmar.activitytracker.util.DateTimeRange;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

@@ -1,6 +1,6 @@
 package com.ayagmar.activitytracker.listener;
 
-import com.ayagmar.activitytracker.config.DpiConfiguration;
+import com.ayagmar.activitytracker.util.DistanceConverter;
 import com.github.kwhat.jnativehook.mouse.NativeMouseEvent;
 import com.github.kwhat.jnativehook.mouse.NativeMouseInputListener;
 import jakarta.annotation.PostConstruct;
@@ -10,11 +10,10 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class MouseMetricsCollector implements NativeMouseInputListener {
-    private static final double CENTIMETER_FACTOR = 2.54;
+    private final DistanceConverter distanceConverter;
     private final MetricsHolder metricsHolder;
     private final IdleStateManager idleStateManager;
     private final MousePositionTracker mousePositionTracker;
-    private final DpiConfiguration dpiConfiguration;
     private final NativeHookService nativeHookService;
 
     @PostConstruct
@@ -35,8 +34,7 @@ public class MouseMetricsCollector implements NativeMouseInputListener {
     @Override
     public void nativeMouseMoved(NativeMouseEvent e) {
         double distance = mousePositionTracker.trackMovement(e.getX(), e.getY());
-        double centimeters = (distance / dpiConfiguration.getDpi()) * CENTIMETER_FACTOR;
-        metricsHolder.addMouseMovement(centimeters);
+        metricsHolder.addMouseMovement(distanceConverter.pixelsToCentimeters(distance));
         idleStateManager.updateActivity();
     }
 }

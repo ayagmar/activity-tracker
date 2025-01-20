@@ -1,4 +1,4 @@
-package com.ayagmar.activitytracker.service;
+package com.ayagmar.activitytracker.util;
 
 import lombok.AllArgsConstructor;
 import lombok.Value;

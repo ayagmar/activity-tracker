@@ -8,6 +8,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -15,7 +16,7 @@ import java.util.Map;
 @Getter
 @Builder
 @Document(collection = "activity_logs")
-@CompoundIndex(name = "timestamp_idle_idx", def = "{'timestamp': 1, 'idle': 1}")
+@CompoundIndex(name = "timestamp_idle_idx", def = "{'timestamp': 1, 'isIdle': 1}")
 public class ActivityLog {
     @Id
     private String id;
@@ -27,6 +28,11 @@ public class ActivityLog {
     private long middleClicks;
     private long keyPresses;
     private double mouseMovement;
-    private boolean isIdle;
+    private boolean idle;
     private Map<String, MonitorActivity> monitorActivities;
+
+    @Field("isIdle")
+    public boolean isIdle() {
+        return idle;
+    }
 }

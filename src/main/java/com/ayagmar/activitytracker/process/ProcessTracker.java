@@ -13,11 +13,9 @@ import org.springframework.stereotype.Component;
 public class ProcessTracker implements ProcessInfoProvider {
     private final JnaProcessService processService;
 
-    @Override
     public ProcessInfo getProcessInfo(WinDef.HWND hwnd) {
         IntByReference processId = new IntByReference();
         User32.INSTANCE.GetWindowThreadProcessId(hwnd, processId);
-
         try (ProcessHandle handle = processService.openProcess(processId.getValue()).orElse(null)) {
             if (handle != null) {
                 String processName = processService.getProcessName(handle.getHandle());
@@ -26,10 +24,8 @@ public class ProcessTracker implements ProcessInfoProvider {
         } catch (Exception e) {
             log.error("Error retrieving process info: {}", e.getMessage());
         }
-
         return ProcessInfo.unknown();
     }
-
 
     private String extractApplicationName(String executablePath) {
         if (executablePath == null || executablePath.isEmpty()) {
@@ -39,3 +35,4 @@ public class ProcessTracker implements ProcessInfoProvider {
         return fileName.substring(0, fileName.lastIndexOf('.'));
     }
 }
+

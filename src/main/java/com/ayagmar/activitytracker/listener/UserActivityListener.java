@@ -34,7 +34,7 @@ public class UserActivityListener {
                 .keyPresses(metrics.getKeyPresses())
                 .mouseMovement(metrics.getMouseMovement())
                 .monitorActivities(monitorActivities)
-                .isIdle(isIdle)
+                .idle(isIdle)
                 .build();
 
         log.info("Recording activity metrics");

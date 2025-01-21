@@ -23,4 +23,14 @@ public class KeyboardMetricsCollector implements NativeKeyListener {
         metricsHolder.incrementKeyPress();
         idleStateManager.updateActivity();
     }
+
+    @Override
+    public void nativeKeyReleased(NativeKeyEvent e) {
+        // No action needed
+    }
+
+    @Override
+    public void nativeKeyTyped(NativeKeyEvent e) {
+        // No action needed
+    }
 }

@@ -42,17 +42,17 @@ class ActivityUsageCalculator {
             }
         }
 
-        if (!logs.isEmpty()) {
-            ActivityLog lastLog = logs.getLast();
-            Duration defaultDuration = Duration.ofMinutes(1);
 
-            if (lastLog.isIdle()) {
-                totalIdleDuration = totalIdleDuration.plus(defaultDuration);
-            } else if (hasFocusedWindow(lastLog)) {
-                totalActiveDuration = totalActiveDuration.plus(defaultDuration);
-                processFocusedApplication(lastLog, defaultDuration, appUsageDurations);
-            }
+        ActivityLog lastLog = logs.getLast();
+        Duration defaultDuration = Duration.ofMinutes(1);
+
+        if (lastLog.isIdle()) {
+            totalIdleDuration = totalIdleDuration.plus(defaultDuration);
+        } else if (hasFocusedWindow(lastLog)) {
+            totalActiveDuration = totalActiveDuration.plus(defaultDuration);
+            processFocusedApplication(lastLog, defaultDuration, appUsageDurations);
         }
+
 
         List<ApplicationUsageStat> appStats = createAndAdjustApplicationStats(appUsageDurations, totalActiveDuration);
 

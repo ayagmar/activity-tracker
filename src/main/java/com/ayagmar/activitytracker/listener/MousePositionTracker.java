@@ -1,9 +1,7 @@
 package com.ayagmar.activitytracker.listener;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-@RequiredArgsConstructor
 @Component
 public class MousePositionTracker {
     private int lastX = -1;

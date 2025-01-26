@@ -13,6 +13,7 @@ public class DateTimeRange {
     LocalDateTime start;
     LocalDateTime end;
 
+
     public static DateTimeRange ofFullDay(LocalDate date) {
         return DateTimeRange.of(
                 date.atStartOfDay(),
@@ -24,5 +25,12 @@ public class DateTimeRange {
         return DateTimeRange.of(
                 date.atStartOfDay(),
                 LocalDateTime.of(date.plusMonths(months), LocalTime.MAX));
+    }
+
+    public static DateTimeRange createDateRange(LocalDateTime start, LocalDateTime end) {
+        if (start == null || end == null) {
+            return DateTimeRange.ofFullDay(LocalDate.now());
+        }
+        return DateTimeRange.of(start, end);
     }
 }

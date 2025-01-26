@@ -7,11 +7,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
+import java.time.LocalDateTime;
+
 @ControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
     private ResponseEntity<ProblemDetail> createProblemDetail(HttpStatus status, String message) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, message);
+        problem.setProperty("timestamp", LocalDateTime.now());
         return ResponseEntity.status(status).body(problem);
     }
 

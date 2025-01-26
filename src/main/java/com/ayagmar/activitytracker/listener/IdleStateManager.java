@@ -22,7 +22,7 @@ public class IdleStateManager {
     private final AtomicBoolean userIdle = new AtomicBoolean(false);
 
     public IdleStateManager(
-            @Value("${activity.idle.threshold-minutes:5}") int idleThresholdMinutes,
+            @Value("${activity.idle.threshold-minutes:3}") int idleThresholdMinutes,
             Clock clock) {
         this.idleThresholdMinutes = idleThresholdMinutes;
         this.clock = clock;

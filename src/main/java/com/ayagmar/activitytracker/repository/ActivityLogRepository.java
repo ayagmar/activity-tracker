@@ -10,4 +10,6 @@ import java.util.List;
 @Repository
 public interface ActivityLogRepository extends MongoRepository<ActivityLog, String> {
     List<ActivityLog> findByTimestampBetween(LocalDateTime start, LocalDateTime end);
+
+    List<ActivityLog> findByTimestampBetweenOrderByTimestamp(LocalDateTime start, LocalDateTime end);
 }

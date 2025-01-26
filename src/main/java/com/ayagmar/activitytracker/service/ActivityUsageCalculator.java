@@ -6,9 +6,9 @@ import com.ayagmar.activitytracker.model.ApplicationUsageStat;
 import com.ayagmar.activitytracker.process.MonitorActivity;
 import com.ayagmar.activitytracker.util.DateTimeRange;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -20,99 +20,79 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Component
 class ActivityUsageCalculator {
+    private final Map<String, Integer> appUsageMinutes = new HashMap<>();
+    private int totalActiveMinutes = 0;
+    private int totalIdleMinutes = 0;
+    @Value("${activity.logging.interval}")
+    private int activityTimer;
     public ApplicationUsageReport calculateReport(DateTimeRange dateRange, List<ActivityLog> logs) {
-        if (logs.isEmpty()) {
-            return ApplicationUsageReport.createEmptyReport(dateRange);
-        }
-
-        Map<String, Duration> appUsageDurations = new HashMap<>();
-        Duration totalActiveDuration = Duration.ZERO;
-        Duration totalIdleDuration = Duration.ZERO;
-
-        for (int i = 0; i < logs.size() - 1; i++) {
-            ActivityLog currentLog = logs.get(i);
-            ActivityLog nextLog = logs.get(i + 1);
-            Duration duration = Duration.between(currentLog.getTimestamp(), nextLog.getTimestamp());
-
-            if (currentLog.isIdle()) {
-                totalIdleDuration = totalIdleDuration.plus(duration);
-            } else if (hasFocusedWindow(currentLog)) {
-                totalActiveDuration = totalActiveDuration.plus(duration);
-                processFocusedApplication(currentLog, duration, appUsageDurations);
-            }
-        }
-
-
-        ActivityLog lastLog = logs.getLast();
-        Duration defaultDuration = Duration.ofMinutes(1);
-
-        if (lastLog.isIdle()) {
-            totalIdleDuration = totalIdleDuration.plus(defaultDuration);
-        } else if (hasFocusedWindow(lastLog)) {
-            totalActiveDuration = totalActiveDuration.plus(defaultDuration);
-            processFocusedApplication(lastLog, defaultDuration, appUsageDurations);
-        }
-
-
-        List<ApplicationUsageStat> appStats = createAndAdjustApplicationStats(appUsageDurations, totalActiveDuration);
+        processLogs(logs);
+        List<ApplicationUsageStat> appStats = createAndAdjustApplicationStats();
 
         return ApplicationUsageReport.builder()
                 .startDate(dateRange.getStart())
                 .endDate(dateRange.getEnd())
-                .totalActiveMinutes(convertToMinutes(totalActiveDuration))
-                .totalIdleMinutes(convertToMinutes(totalIdleDuration))
+                .totalActiveMinutes(totalActiveMinutes)
+                .totalIdleMinutes(totalIdleMinutes)
                 .applicationStats(appStats)
                 .build();
     }
 
+    private void processLogs(List<ActivityLog> logs) {
+        logs.forEach(this::processLog);
+    }
+
+    private void processLog(ActivityLog log) {
+        if (log.isIdle()) {
+            totalIdleMinutes++;
+            return;
+        }
+        if (hasFocusedWindow(log)) {
+            totalActiveMinutes++;
+            processFocusedApplication(log);
+        }
+    }
     private boolean hasFocusedWindow(ActivityLog log) {
         return log.getMonitorActivities().values().stream()
                 .anyMatch(MonitorActivity::isFocused);
     }
 
-    private void processFocusedApplication(ActivityLog log, Duration duration, Map<String, Duration> appUsageDurations) {
+    private void processFocusedApplication(ActivityLog log) {
         log.getMonitorActivities().values().stream()
                 .filter(MonitorActivity::isFocused)
                 .map(MonitorActivity::getApplicationName)
-                .forEach(appName ->
-                        appUsageDurations.merge(appName, duration, Duration::plus));
+                .forEach(appName -> appUsageMinutes.merge(appName, 1, Integer::sum));
     }
 
-    private List<ApplicationUsageStat> createAndAdjustApplicationStats(Map<String, Duration> appUsageDurations, Duration totalActiveDuration) {
-        List<ApplicationUsageStat> stats = createApplicationStats(appUsageDurations, totalActiveDuration);
+    private List<ApplicationUsageStat> createAndAdjustApplicationStats() {
+        List<ApplicationUsageStat> stats = createApplicationStats();
         adjustUsagePercentages(stats);
         return stats;
     }
 
-    private List<ApplicationUsageStat> createApplicationStats(Map<String, Duration> appUsageDurations, Duration totalActiveDuration) {
-        return appUsageDurations.entrySet().stream()
-                .filter(entry -> !entry.getValue().isZero())
+    private List<ApplicationUsageStat> createApplicationStats() {
+        return appUsageMinutes.entrySet().stream()
+                .filter(entry -> entry.getValue() > 0) // Filter out unused applications
                 .collect(Collectors.collectingAndThen(
                         Collectors.toMap(
                                 Map.Entry::getKey,
                                 entry -> ApplicationUsageStat.builder()
                                         .applicationName(entry.getKey())
-                                        .usageDurationInMinutes(convertToMinutes(entry.getValue()))
-                                        .usagePercentage(calculatePercentage(entry.getValue(), totalActiveDuration))
+                                        .usageDurationInMinutes(entry.getValue())
+                                        .usagePercentage(calculatePercentage(entry.getValue()))
                                         .build(),
                                 (a, b) -> a,
                                 () -> new TreeMap<>(
-                                        Comparator.<String, Duration>comparing(appUsageDurations::get).reversed()
+                                        Comparator.<String, Integer>comparing(appUsageMinutes::get).reversed()
                                 )
                         ),
                         map -> new ArrayList<>(map.values())
                 ));
     }
 
-    private int convertToMinutes(Duration duration) {
-        return (int) duration.toMinutes();
-    }
 
-    private double calculatePercentage(Duration duration, Duration totalActiveDuration) {
-        if (totalActiveDuration.isZero()) {
-            return 0.0;
-        }
-        return (duration.toMillis() * 100.0) / totalActiveDuration.toMillis();
+    private double calculatePercentage(int minutes) {
+        return totalActiveMinutes > 0 ? (minutes * 100.0) / totalActiveMinutes : 0.0;
     }
 
     private void adjustUsagePercentages(List<ApplicationUsageStat> appStats) {
@@ -138,5 +118,4 @@ class ActivityUsageCalculator {
     private double roundToTwoDecimals(double value) {
         return Math.round(value * 100.0) / 100.0;
     }
-
 }
